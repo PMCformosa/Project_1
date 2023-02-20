@@ -1,0 +1,135 @@
+---
+title: "DATA607_Project1"
+author: "PeiMing Chen"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+Introduction: 
+In this project, we were given a text file with chess tournament results where the information has some structure. My job is to create an R Markdown file that generates a .CSV file (that could for example be imported into a SQL database) with the following information for all of the players:
+
+Player’s Name, Player’s State, Total Number of Points, Player’s Pre-Rating, and Average Pre Chess Rating of Opponents
+
+I created a .CSV file including information of all the players that mentioned above.
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(stringr)
+library(dplyr)
+```
+
+### Read the Data text file 
+
+This tournamnet .CSV file is saved in my Github account. The separator function," \t ", is applied. 
+
+```{r}
+tournamentData_info <- read.csv("https://raw.githubusercontent.com/PMCformosa/Project_1/main/tournamentinfo.txt", header = FALSE, sep="\t")
+tournamentData_info
+```
+
+### Cleaning up the Data
+Remove the headers 
+```{r}
+headingsoff_Data <- tournamentData_info [-c(1:3),]
+headingsoff_Data
+```
+
+Select only the names of players from the original data
+```{r}
+player_name <- unlist(str_extract_all(headingsoff_Data,"\\| [[:upper:]]+ [[:upper:]]+ [[:upper:] -]+\\|"))
+player_name
+
+```
+
+Clean up the names of players
+```{r}
+player_name <- str_replace_all(player_name, pattern = "\\| ", replacement = "")
+name_only <- str_replace_all(player_name, pattern = " +\\|", replacement = "")
+name_only
+```
+
+Selet only the states of players from the original data
+```{r}
+State_name <- unlist(str_extract_all(headingsoff_Data," [[:upper:]][[:upper:]] \\|"))
+State_name
+#View(State_name)
+```
+
+Clean up the states of players
+```{r}
+State_name <- str_replace_all(State_name, pattern = " \\|", replacement = "")
+State_name <- str_replace_all(State_name, pattern = " ", replacement = "")
+State_name
+```
+
+Select the total points of each player
+```{r}
+Total_Points_1 <- unlist(str_extract_all(headingsoff_Data,"\\|[[:digit:]].[[:digit:]]"))
+
+Total_Points <- str_replace_all(Total_Points_1, pattern = "\\|", replacement = "")
+Total_Points 
+```
+
+### Obtain Players' Pre-Rating 
+```{r}
+Player_preRating <- unlist(str_extract_all(headingsoff_Data,": +[[:digit:]]{3,}"))
+ 
+Player_preRating  <- str_replace_all(Player_preRating, pattern = ": +", replacement = "")
+Player_preRating
+```
+
+### Average Pre Chess Rating of Opponents
+
+Select opponents of each player
+```{r}
+opponents <- unlist(str_extract_all(headingsoff_Data,"\\|[[:digit:]].[[:digit:]] +\\|[[:upper:]] +[[:digit:]]*\\|[[:upper:]] +[[:digit:]]*\\|[[:upper:]] +[[:digit:]]*\\|[[:upper:]] +[[:digit:]]*\\|[[:upper:]] +[[:digit:]]*\\|[[:upper:]] +[[:digit:]]*\\|[[:upper:]] +[[:digit:]]*\\|"))
+
+opponents
+```
+
+Clean up the selected data
+```{r}
+opponents  <- str_sub(opponents, 7,-1)
+
+opponents
+```
+
+Clean up the selected data further and make it a list 
+```{r}
+opponents_list  <- str_extract_all(opponents,"(\\d+)")
+opponents_list
+```
+
+### Obtain the Average of Opponents' Pre Chess Rating of each player
+```{r}
+rating <- unlist(lapply(Player_preRating,strtoi))
+all_avg_rate = c()
+for (x in opponents_list) {
+  each_player_opponent <- unlist(lapply(x,strtoi))
+  each_player_opponent_rate <- c()
+  for (y in each_player_opponent) {
+    each_player_opponent_rate <- append(each_player_opponent_rate,rating[y])
+  }
+  avg_rate <- mean(each_player_opponent_rate)
+  #print(avg_rate)
+  all_avg_rate <- append(all_avg_rate,avg_rate)
+  #print(all_avg_rate)
+}
+
+all_avg_rate
+```
+
+Rearrange all the cleaned up data into a table 
+```{r}
+player_number <- unlist(str_extract_all(tournamentData_info, "\\d{1,2}\\s\\|"))
+player_number <- str_replace_all(player_number, pattern = "(\\s\\|)", replacement = "")
+player_number <- as.numeric(player_number)
+player_number 
+tableA <- data.frame(player_number = player_number, name_only = name_only, State_name = State_name, Total_Points  = Total_Points , Player_preRating = rating, Opponent_average_rating_list = all_avg_rate)
+tableA
+view(tableA)
+```
+
+Save the data table into a .CSV file and upload it on my github account
+```{r}
+write.csv(tableA, "tableA.csv", row.names=TRUE)
+```
+
